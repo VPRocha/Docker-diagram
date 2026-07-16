@@ -1,0 +1,1099 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Do Projeto ao Container — Angular + Node.js com Docker</title>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    /* base */
+    --bg:        #0d1117;
+    --bg-2:      #10151d;
+    --surface:   #141a22;
+    --surface-2: #1a212b;
+    --border:    #232b36;
+    --border-2:  #313b48;
+    --text:      #dfe5ec;
+    --muted:     #9aa4b2;
+    --faint:     #6b7685;
+
+    /* cores semânticas por tipo — paleta corporativa, baixa saturação */
+    --c-source:    #7e9689;  /* código fonte  */
+    --c-docker:    #7089a3;  /* dockerfile    */
+    --c-image:     #97899a;  /* imagem docker */
+    --c-container: #888ca3;  /* container     */
+    --c-command:   #9c9280;  /* comandos      */
+    --c-compose:   #9a8a8a;  /* compose       */
+
+    /* terminal — mantido intacto, independente da paleta acima */
+    --t-green:   #6bb38e;
+    --t-amber:   #c2a15c;
+
+    --radius:   12px;
+    --radius-sm:10px;
+    --maxw:     860px;
+    --ease:     cubic-bezier(.22, 1, .36, 1);
+
+    --font-sans:    'Inter', system-ui, -apple-system, sans-serif;
+    --font-display: 'Inter', system-ui, -apple-system, sans-serif;
+    --font-mono:    'JetBrains Mono', 'Cascadia Code', 'Fira Code', 'Consolas', monospace;
+  }
+
+  html { scroll-behavior: smooth; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font-sans);
+    min-height: 100vh;
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+    overflow-x: hidden;
+  }
+
+  /* progress bar */
+  .scroll-progress {
+    position: fixed; top: 0; left: 0; height: 2px; width: 0%;
+    background: var(--c-docker);
+    z-index: 100;
+    transition: width .1s linear;
+  }
+
+  main { position: relative; z-index: 1; }
+
+  ::selection { background: rgba(112,137,163,.32); color: #fff; }
+
+  /* ─────────────── HEADER ─────────────── */
+  header {
+    text-align: center;
+    padding: 4.5rem 1.2rem 1.5rem;
+    max-width: 760px;
+    margin: 0 auto;
+  }
+  .eyebrow {
+    display: inline-flex; align-items: center; gap: .5rem;
+    font-family: var(--font-mono);
+    font-size: .72rem; letter-spacing: .14em; text-transform: uppercase;
+    color: var(--muted);
+    border: 1px solid var(--border);
+    background: var(--surface);
+    padding: .38rem .8rem;
+    border-radius: 6px;
+    margin-bottom: 1.5rem;
+  }
+  .eyebrow .pulse {
+    width: 6px; height: 6px; border-radius: 50%;
+    background: var(--c-source);
+  }
+  header h1 {
+    font-family: var(--font-display);
+    font-size: clamp(1.9rem, 5vw, 2.8rem);
+    font-weight: 700;
+    line-height: 1.12;
+    letter-spacing: -.02em;
+    color: var(--text);
+  }
+  header p.lead {
+    color: var(--muted);
+    margin-top: 1rem;
+    font-size: clamp(1rem, 2.2vw, 1.1rem);
+    max-width: 560px; margin-left: auto; margin-right: auto;
+  }
+  header p.lead strong { color: var(--text); font-weight: 600; }
+
+  /* ─────────────── LEGENDA ─────────────── */
+  .legend {
+    display: flex; flex-wrap: wrap; justify-content: center;
+    gap: .5rem;
+    padding: 1.6rem 1.2rem .5rem;
+    max-width: var(--maxw); margin: 0 auto;
+  }
+  .legend-item {
+    display: flex; align-items: center; gap: .5rem;
+    font-size: .78rem; font-weight: 500; color: var(--muted);
+    background: var(--surface);
+    border: 1px solid var(--border);
+    padding: .4rem .8rem;
+    border-radius: 6px;
+    transition: color .2s, border-color .2s;
+  }
+  .legend-item:hover { color: var(--text); border-color: var(--border-2); }
+  .dot {
+    width: 9px; height: 9px; border-radius: 2px; flex-shrink: 0;
+  }
+
+  /* ─────────────── FAIXA DE TRANSFORMAÇÃO ─────────────── */
+  .transform-banner {
+    max-width: 900px;
+    margin: 1.5rem auto 3rem;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 1.8rem 1.2rem 1.3rem;
+    text-align: center;
+  }
+  .transform-track {
+    position: relative;
+    display: flex; align-items: center; justify-content: center;
+    gap: .3rem; flex-wrap: wrap;
+  }
+  .t-node {
+    position: relative;
+    display: flex; flex-direction: column; align-items: center; gap: .5rem;
+    padding: .8rem .6rem .7rem;
+    border-radius: 10px;
+    min-width: 92px;
+    border: 1px solid var(--border);
+    background: var(--surface-2);
+    opacity: .45;
+    transition: opacity .45s var(--ease), border-color .45s;
+  }
+  .t-node .emoji {
+    font-size: 1.7rem; line-height: 1;
+    filter: grayscale(.5) opacity(.75);
+    transition: filter .45s;
+  }
+  .t-node .lbl { font-size: .72rem; font-weight: 500; text-align: center; color: var(--muted); transition: color .45s; }
+  .t-node.on {
+    opacity: 1;
+    border-color: currentColor;
+  }
+  .t-node.on .emoji { filter: none; }
+  .t-node.on .lbl { color: var(--text); }
+  .t-arrow {
+    color: var(--faint); font-size: 1.15rem; opacity: .5;
+    transition: color .45s, opacity .45s;
+  }
+  .t-arrow.on { color: var(--muted); opacity: 1; }
+  .replay-btn {
+    display: inline-flex; align-items: center; gap: .5rem;
+    margin: 1.5rem auto 0;
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    color: var(--muted);
+    padding: .48rem 1rem;
+    border-radius: 6px;
+    cursor: pointer;
+    font-family: var(--font-sans);
+    font-size: .78rem; font-weight: 500;
+    transition: color .2s, border-color .2s;
+  }
+  .replay-btn:hover { color: var(--text); border-color: var(--border-2); }
+
+  /* ─────────────── TIMELINE ─────────────── */
+  .timeline {
+    max-width: var(--maxw);
+    margin: 0 auto;
+    padding: 0 1.4rem 5rem;
+    position: relative;
+  }
+
+  .step {
+    position: relative;
+    padding-left: 5rem;
+    padding-bottom: 2.4rem;
+    opacity: 0;
+    transform: translateY(16px);
+    transition: opacity .6s var(--ease), transform .6s var(--ease);
+  }
+  .step.reveal { opacity: 1; transform: none; }
+
+  /* linha vertical conectora */
+  .step:not(:last-child)::before {
+    content: '';
+    position: absolute;
+    left: 1.6rem;
+    top: 3.4rem;
+    bottom: -.5rem;
+    width: 2px;
+    background: var(--border);
+  }
+
+  .step-badge {
+    position: absolute;
+    left: 0; top: .25rem;
+    width: 3.2rem; height: 3.2rem;
+    border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+    font-family: var(--font-display);
+    font-weight: 700; font-size: 1.25rem;
+    background: var(--bg-2);
+    border: 1px solid var(--accent, var(--border-2));
+    color: var(--accent, var(--muted));
+    z-index: 2;
+  }
+
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    overflow: hidden;
+    transition: border-color .25s, box-shadow .25s;
+    position: relative;
+  }
+  .card::before {
+    content: '';
+    position: absolute; left: 0; top: 0; bottom: 0; width: 2px;
+    background: var(--accent, var(--border));
+    opacity: .5;
+    transition: opacity .25s;
+  }
+  .card:hover { border-color: var(--border-2); }
+  .card.open {
+    border-color: var(--border-2);
+    box-shadow: 0 10px 30px -18px rgba(0,0,0,.7);
+  }
+  .card.open::before { opacity: 1; }
+
+  .card-head {
+    padding: 1.15rem 1.3rem;
+    cursor: pointer;
+    display: flex; align-items: center; gap: .9rem;
+    user-select: none;
+    transition: background .2s;
+  }
+  .card-head:hover { background: rgba(255,255,255,.025); }
+  .card-emoji {
+    font-size: 1.3rem;
+    width: 2.3rem; height: 2.3rem;
+    display: flex; align-items: center; justify-content: center;
+    border-radius: 8px;
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    flex-shrink: 0;
+  }
+  .card-titles { flex: 1; min-width: 0; }
+  .card-titles .kicker {
+    font-family: var(--font-mono);
+    font-size: .66rem; letter-spacing: .14em; text-transform: uppercase;
+    color: var(--accent, var(--muted));
+    font-weight: 600;
+  }
+  .card-titles h3 { font-family: var(--font-display); font-size: 1.12rem; font-weight: 600; letter-spacing: -.01em; margin-top: .1rem; }
+  .card-titles .sub { font-size: .82rem; color: var(--muted); margin-top: .18rem; }
+  .chevron {
+    color: var(--muted); font-size: 1.15rem;
+    transition: transform .35s var(--ease), color .2s;
+    flex-shrink: 0;
+  }
+  .card.open .chevron { transform: rotate(180deg); }
+
+  .card-body {
+    display: grid;
+    grid-template-rows: 0fr;
+    transition: grid-template-rows .45s var(--ease);
+  }
+  .card.open .card-body { grid-template-rows: 1fr; }
+  .card-body > div { overflow: hidden; }
+  .card-inner { padding: .2rem 1.3rem 1.5rem; }
+
+  .explain { font-size: .92rem; color: var(--text); margin-bottom: .3rem; }
+  .explain strong { color: #fff; font-weight: 600; }
+  .explain ul { list-style: none; padding: 0; margin: .7rem 0; }
+  .explain li {
+    padding: .38rem 0 .38rem 1.6rem;
+    position: relative;
+    color: var(--muted);
+    font-size: .89rem;
+  }
+  .explain li::before {
+    content: '›';
+    position: absolute; left: .45rem; top: .34rem;
+    color: var(--accent, var(--muted));
+    font-weight: 800; font-size: 1rem;
+  }
+  code {
+    font-family: var(--font-mono);
+    font-size: .82em;
+    background: rgba(255,255,255,.06);
+    border: 1px solid var(--border);
+    padding: .08em .4em;
+    border-radius: 6px;
+    color: #dbe4ee;
+  }
+
+  .block-label {
+    font-family: var(--font-mono);
+    font-size: .7rem; text-transform: uppercase; letter-spacing: .1em;
+    color: var(--muted); font-weight: 600;
+    margin: 1.35rem 0 .6rem;
+    display: flex; align-items: center; gap: .5rem;
+  }
+  .block-label::after {
+    content: ''; flex: 1; height: 1px;
+    background: linear-gradient(90deg, var(--border-2), transparent);
+  }
+
+  /* ─────────────── TERMINAL ─────────────── */
+  .terminal {
+    background: #0a0e14;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    overflow: hidden;
+    font-family: var(--font-mono);
+    font-size: .82rem;
+  }
+  .term-bar {
+    background: rgba(255,255,255,.03);
+    padding: .55rem .85rem;
+    display: flex; align-items: center; gap: .45rem;
+    border-bottom: 1px solid rgba(255,255,255,.06);
+  }
+  .term-bar .dots { display: flex; gap: .45rem; }
+  .term-bar .dots span { width: 11px; height: 11px; border-radius: 50%; }
+  .term-bar .r { background: #ff5f57; }
+  .term-bar .y { background: #febc2e; }
+  .term-bar .g { background: #28c840; }
+  .term-bar .title { color: var(--faint); font-size: .72rem; margin-left: .55rem; letter-spacing: .02em; }
+  .term-body { padding: .9rem 1.05rem; line-height: 1.9; min-height: 2rem; }
+  .term-line { white-space: pre-wrap; word-break: break-word; }
+  .term-line .prompt { color: var(--t-green); font-weight: 600; }
+  .term-line .cmd { color: #eef2f7; }
+  .term-line .out { color: var(--muted); }
+  .term-line .ok { color: var(--t-green); }
+  .term-line .warn { color: var(--t-amber); }
+  .cursor {
+    display: inline-block; width: 8px; height: 1.05em;
+    vertical-align: text-bottom;
+    background: var(--muted);
+    animation: blink 1s steps(2) infinite;
+    margin-left: 2px;
+  }
+  @keyframes blink { 0%,50%{opacity:1;} 50.01%,100%{opacity:0;} }
+  .run-term {
+    margin-top: .7rem;
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    color: var(--muted);
+    padding: .46rem 1rem;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: .76rem; font-weight: 500;
+    font-family: var(--font-mono);
+    display: inline-flex; align-items: center; gap: .45rem;
+    transition: color .2s, border-color .2s, background .2s;
+  }
+  .run-term:hover { border-color: var(--border-2); background: var(--surface); color: var(--text); }
+  .run-term:disabled { opacity: .5; cursor: default; }
+
+  /* ─────────────── ÁRVORE DE ARQUIVOS ─────────────── */
+  .tree {
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 1rem 1.1rem;
+    font-family: var(--font-mono);
+    font-size: .82rem; line-height: 1.85;
+    white-space: pre; overflow-x: auto;
+  }
+  .tree .folder { color: var(--c-command); font-weight: 600; }
+  .tree .src    { color: var(--c-source); }
+  .tree .docker { color: var(--c-docker); font-weight: 600; }
+  .tree .json   { color: var(--c-image); }
+  .tree .mod    { color: var(--faint); }
+  .tree .note   { color: var(--faint); font-style: italic; }
+
+  /* ─────────────── DOCKERFILE ─────────────── */
+  .dockerfile {
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--c-docker);
+    border-radius: 12px;
+    padding: 1rem 1.1rem;
+    font-family: var(--font-mono);
+    font-size: .82rem; line-height: 1.9;
+    white-space: pre; overflow-x: auto;
+  }
+  .dockerfile .kw  { color: var(--c-container); font-weight: 600; }
+  .dockerfile .val { color: var(--c-source); }
+  .dockerfile .cmt { color: var(--faint); font-style: italic; }
+  .file-tab {
+    display: inline-block;
+    background: var(--surface-2);
+    color: var(--c-docker);
+    border: 1px solid var(--border);
+    border-bottom: none;
+    font-family: var(--font-mono);
+    font-size: .73rem; font-weight: 600;
+    padding: .28rem .8rem;
+    border-radius: 8px 8px 0 0;
+    margin-bottom: -1px;
+    position: relative; z-index: 1;
+  }
+
+  /* ─────────────── BUILD FLOW ─────────────── */
+  .build-flow {
+    display: flex; flex-direction: column; align-items: center; gap: .55rem;
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 1.3rem;
+  }
+  .bf-row { display: flex; align-items: center; gap: .7rem; flex-wrap: wrap; justify-content: center; }
+  .bf-chip {
+    padding: .5rem .9rem;
+    border-radius: 8px;
+    font-size: .8rem; font-weight: 500;
+    border: 1px solid currentColor;
+    background: color-mix(in srgb, currentColor 6%, transparent);
+    display: flex; align-items: center; gap: .45rem;
+  }
+  .bf-plus { color: var(--faint); font-size: 1.3rem; font-weight: 700; }
+  .bf-down { color: var(--faint); font-size: 1.25rem; }
+  .bf-source    { color: var(--c-source); }
+  .bf-docker    { color: var(--c-docker); }
+  .bf-build     { color: var(--c-command); }
+  .bf-image     { color: var(--c-image); }
+  .bf-container { color: var(--c-container); }
+
+  /* ─────────────── COMPOSE ─────────────── */
+  .compose-stack { display: flex; flex-direction: column; align-items: center; gap: .35rem; }
+  .compose-node {
+    width: 100%; max-width: 360px; text-align: center;
+    padding: .85rem;
+    border-radius: 8px;
+    font-weight: 500; font-size: .85rem;
+    border: 1px solid currentColor;
+    background: color-mix(in srgb, currentColor 6%, var(--surface-2));
+  }
+  .compose-node small { display: block; font-weight: 400; color: var(--muted); font-size: .72rem; margin-top: .18rem; }
+  .compose-pipe { color: var(--faint); font-size: 1.15rem; height: 1.25rem; }
+
+  /* ─────────────── VS GRID ─────────────── */
+  .vs-grid { display: grid; grid-template-columns: 1fr auto 1fr; gap: .9rem; align-items: center; margin-top: .8rem; }
+  .vs-card {
+    background: color-mix(in srgb, currentColor 5%, var(--surface-2));
+    border: 1px solid currentColor;
+    border-radius: 10px;
+    padding: 1.1rem;
+    text-align: center;
+  }
+  .vs-card .vi { font-size: 2rem; }
+  .vs-card h4 { font-family: var(--font-display); font-size: .95rem; margin: .35rem 0; }
+  .vs-card p  { font-size: .77rem; color: var(--muted); }
+  .vs-mid { text-align: center; color: var(--faint); font-size: 1.5rem; }
+
+  /* ─────────────── FOOTER ─────────────── */
+  footer {
+    text-align: center;
+    color: var(--faint);
+    font-size: .8rem;
+    padding: 2.5rem 1.2rem 3.5rem;
+    border-top: 1px solid var(--border);
+    max-width: var(--maxw); margin: 0 auto;
+    line-height: 1.9;
+  }
+  footer strong { color: var(--muted); }
+
+  @media (max-width: 560px) {
+    header { padding-top: 4rem; }
+    .step { padding-left: 4rem; }
+    .step-badge { width: 2.9rem; height: 2.9rem; font-size: 1.1rem; }
+    .step:not(:last-child)::before { left: 1.44rem; }
+    .vs-grid { grid-template-columns: 1fr; }
+    .vs-mid { transform: rotate(90deg); }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    * { animation-duration: .001ms !important; animation-iteration-count: 1 !important; transition-duration: .001ms !important; scroll-behavior: auto !important; }
+    .step { opacity: 1; transform: none; }
+  }
+</style>
+</head>
+<body>
+
+<div class="scroll-progress" id="progress"></div>
+
+<main>
+<header>
+  <span class="eyebrow"><span class="pulse"></span>Tutorial · Docker</span>
+  <h1>Do Projeto ao Container</h1>
+  <p class="lead">Como nasce uma aplicação <strong>Angular + Node.js</strong> e como ela é empacotada, camada por camada, até rodar em Docker.</p>
+</header>
+
+<!-- LEGENDA -->
+<div class="legend">
+  <div class="legend-item"><span class="dot" style="color:var(--c-source);background:currentColor"></span>Código fonte</div>
+  <div class="legend-item"><span class="dot" style="color:var(--c-docker);background:currentColor"></span>Dockerfile</div>
+  <div class="legend-item"><span class="dot" style="color:var(--c-image);background:currentColor"></span>Imagem Docker</div>
+  <div class="legend-item"><span class="dot" style="color:var(--c-container);background:currentColor"></span>Container</div>
+  <div class="legend-item"><span class="dot" style="color:var(--c-command);background:currentColor"></span>Comandos</div>
+</div>
+
+<!-- ANIMAÇÃO DE TRANSFORMAÇÃO -->
+<div class="transform-banner">
+  <div class="transform-track" id="track">
+    <div class="t-node" style="color:var(--c-source)"    data-i="0"><span class="emoji">📁</span><span class="lbl">Projeto</span></div>
+    <span class="t-arrow" data-a="0">➜</span>
+    <div class="t-node" style="color:var(--c-docker)"    data-i="1"><span class="emoji">📄</span><span class="lbl">Dockerfile</span></div>
+    <span class="t-arrow" data-a="1">➜</span>
+    <div class="t-node" style="color:var(--c-image)"     data-i="2"><span class="emoji">🖼️</span><span class="lbl">Imagem</span></div>
+    <span class="t-arrow" data-a="2">➜</span>
+    <div class="t-node" style="color:var(--c-container)" data-i="3"><span class="emoji">📦</span><span class="lbl">Container</span></div>
+    <span class="t-arrow" data-a="3">➜</span>
+    <div class="t-node" style="color:var(--c-source)"    data-i="4"><span class="emoji">🟢</span><span class="lbl">App rodando</span></div>
+  </div>
+  <button class="replay-btn" onclick="playTransform()">↻ Repetir animação</button>
+</div>
+
+<!-- TIMELINE -->
+<div class="timeline" id="timeline"></div>
+
+<footer>
+  Tutorial educativo — foco em desenvolvimento local e Docker básico.<br>
+  Clique em cada etapa para expandir · Clique em <strong>▶ Executar</strong> nos terminais para simular os comandos.
+</footer>
+</main>
+
+<script>
+/* ═══════════════════════════════════════════════
+   DADOS DAS 8 ETAPAS
+   type controla a cor de destaque (accent)
+   ═══════════════════════════════════════════════ */
+const ACCENT = {
+  source:   'var(--c-source)',
+  docker:   'var(--c-docker)',
+  image:    'var(--c-image)',
+  container:'var(--c-container)',
+  command:  'var(--c-command)',
+  compose:  'var(--c-compose)'
+};
+
+const steps = [
+  /* ETAPA 1 */
+  {
+    n: 1, type: 'source', emoji: '📁',
+    title: 'Criando o projeto local',
+    sub: 'A pasta raiz e a separação backend / frontend',
+    html: `
+      <p class="explain">O primeiro passo é o desenvolvedor criar a estrutura do projeto na própria máquina. Backend e frontend são <strong>aplicações independentes</strong>, cada uma na sua pasta.</p>
+      <ul class="explain">
+        <li>O desenvolvedor primeiro cria os projetos localmente.</li>
+        <li>Backend e frontend são aplicações independentes (podem rodar e evoluir separadamente).</li>
+      </ul>
+
+      <div class="block-label">💻 Terminal — comandos iniciais</div>
+      __TERM_1__
+
+      <div class="block-label">🌳 Estrutura criada</div>
+      <div class="tree"><span class="folder">📁 projeto-fullstack</span>
+│
+├── <span class="folder">📁 backend</span>
+│   └── <span class="src">Projeto Node.js / NestJS</span>
+│
+└── <span class="folder">📁 frontend</span>
+    └── <span class="src">Projeto Angular</span></div>
+    `,
+    term: {
+      id: 1,
+      lines: [
+        { p: '$ ', cmd: 'mkdir projeto-fullstack' },
+        { p: '$ ', cmd: 'cd projeto-fullstack' },
+        { out: '# backend e frontend serão criados pelos CLIs (etapas 2 e 3)', cls: 'out' }
+      ]
+    }
+  },
+
+  /* ETAPA 2 */
+  {
+    n: 2, type: 'source', emoji: '⬡',
+    title: 'Criando o Backend Node.js',
+    sub: 'A API que processa as regras de negócio',
+    html: `
+      <p class="explain">O <strong>backend</strong> é o cérebro da aplicação: recebe requisições, aplica as regras de negócio, acessa o banco de dados e devolve respostas (normalmente uma API REST). Usaremos Node.js com NestJS.</p>
+      <ul class="explain">
+        <li>Roda por padrão na porta <strong>3000</strong>.</li>
+        <li>Não tem interface visual — serve dados para o frontend consumir.</li>
+        <li><code>node_modules</code> guarda as dependências instaladas pelo <code>npm install</code>.</li>
+      </ul>
+
+      <div class="block-label">💻 Terminal — instalando e rodando</div>
+      __TERM_2__
+
+      <div class="block-label">🌳 Estrutura do backend</div>
+      <div class="tree"><span class="folder">📁 backend</span>
+├── <span class="src">📁 src</span>            <span class="note"># código da aplicação</span>
+├── <span class="json">package.json</span>     <span class="note"># dependências e scripts</span>
+├── <span class="mod">📁 node_modules</span>   <span class="note"># libs instaladas</span>
+└── <span class="docker">Dockerfile</span>       <span class="note"># criado na etapa 4</span></div>
+    `,
+    term: {
+      id: 2,
+      lines: [
+        { p: '$ ', cmd: 'npx @nestjs/cli new backend' },
+        { out: '? Which package manager? › npm', cls: 'out' },
+        { out: '✓ Installation in progress...', cls: 'out' },
+        { out: 'added 214 packages in 6s', cls: 'out' },
+        { p: '$ ', cmd: 'cd backend' },
+        { p: '$ ', cmd: 'npm run start:dev' },
+        { out: '[Nest] Starting Nest application...', cls: 'out' },
+        { out: '✓ Backend rodando em http://localhost:3000', cls: 'ok' }
+      ]
+    }
+  },
+
+  /* ETAPA 3 */
+  {
+    n: 3, type: 'source', emoji: '▲',
+    title: 'Criando o Frontend Angular',
+    sub: 'A interface que o usuário vê e usa',
+    html: `
+      <p class="explain">O <strong>frontend</strong> em Angular é a camada visual: telas, botões, formulários. Ele consome os dados que o backend fornece e apresenta ao usuário.</p>
+      <ul class="explain">
+        <li>Em desenvolvimento roda na porta <strong>4200</strong> (via <code>ng serve</code>).</li>
+        <li>É uma SPA (Single Page Application) construída com TypeScript.</li>
+        <li>Se comunica com o backend por requisições HTTP.</li>
+      </ul>
+
+      <div class="block-label">💻 Terminal — instalando e servindo</div>
+      __TERM_3__
+
+      <div class="block-label">🌳 Estrutura do frontend</div>
+      <div class="tree"><span class="folder">📁 frontend</span>
+├── <span class="src">📁 src</span>            <span class="note"># componentes Angular</span>
+├── <span class="json">angular.json</span>     <span class="note"># configuração do Angular</span>
+├── <span class="json">package.json</span>     <span class="note"># dependências e scripts</span>
+└── <span class="docker">Dockerfile</span>       <span class="note"># criado na etapa 4</span></div>
+    `,
+    term: {
+      id: 3,
+      lines: [
+        { p: '$ ', cmd: 'npx @angular/cli new frontend' },
+        { out: '? Which stylesheet format? › CSS', cls: 'out' },
+        { out: '✔ Packages installed successfully.', cls: 'out' },
+        { p: '$ ', cmd: 'cd frontend' },
+        { p: '$ ', cmd: 'ng serve' },
+        { out: '✔ Compiled successfully.', cls: 'out' },
+        { out: '✓ Frontend em http://localhost:4200', cls: 'ok' }
+      ]
+    }
+  },
+
+  /* ETAPA 4 */
+  {
+    n: 4, type: 'docker', emoji: '📄',
+    title: 'Criando o Dockerfile',
+    sub: 'A receita para construir a imagem',
+    html: `
+      <p class="explain">O <strong>Dockerfile</strong> é um arquivo de texto com a "receita" de como montar a imagem. Cada linha é uma instrução executada em ordem.</p>
+      <ul class="explain">
+        <li>O Dockerfile é uma receita de construção da imagem.</li>
+        <li>Ele define o ambiente (imagem base), as dependências e o comando inicial.</li>
+      </ul>
+
+      <div class="block-label">🔤 Instruções usadas</div>
+      <ul class="explain">
+        <li><code>FROM</code> — imagem base com o ambiente (Node.js 22).</li>
+        <li><code>WORKDIR</code> — pasta de trabalho dentro do container.</li>
+        <li><code>COPY</code> — copia arquivos do projeto para dentro da imagem.</li>
+        <li><code>RUN</code> — executa comandos durante a construção (ex: instalar libs).</li>
+        <li><code>CMD</code> — comando que inicia a aplicação quando o container sobe.</li>
+      </ul>
+
+      <div class="file-tab">backend/Dockerfile</div>
+      <div class="dockerfile"><span class="kw">FROM</span> <span class="val">node:22</span>
+<span class="kw">WORKDIR</span> <span class="val">/app</span>
+<span class="kw">COPY</span> <span class="val">package*.json .</span>
+<span class="kw">RUN</span> <span class="val">npm install</span>
+<span class="kw">COPY</span> <span class="val">. .</span>
+<span class="kw">CMD</span> <span class="val">["npm","run","start"]</span></div>
+
+      <div class="file-tab" style="margin-top:1rem">frontend/Dockerfile</div>
+      <div class="dockerfile"><span class="kw">FROM</span> <span class="val">node:22</span>
+<span class="kw">WORKDIR</span> <span class="val">/app</span>
+<span class="kw">COPY</span> <span class="val">package*.json .</span>
+<span class="kw">RUN</span> <span class="val">npm install</span>
+<span class="kw">COPY</span> <span class="val">. .</span>
+<span class="cmt"># chama o ng direto p/ garantir que o --host chega ao dev server</span>
+<span class="kw">CMD</span> <span class="val">["npx","ng","serve","--host","0.0.0.0","--poll","2000"]</span></div>
+
+      <ul class="explain" style="margin-top:1rem">
+        <li>No frontend, o <code>ng serve</code> escuta só em <code>localhost</code> dentro do container. Sem <code>--host 0.0.0.0</code>, o mapeamento <code>-p 4200:4200</code> não alcança a aplicação.</li>
+        <li>Chamamos <code>ng</code> direto (e não <code>npm start -- ...</code>) porque o repasse de argumentos pelo <code>npm start</code> costuma engolir as flags.</li>
+        <li>Deu certo quando o log mostra a linha <code>Network: http://…:4200/</code> além de <code>Local:</code>.</li>
+      </ul>
+    `
+  },
+
+  /* ETAPA 5 */
+  {
+    n: 5, type: 'image', emoji: '🖼️',
+    title: 'Criando as imagens Docker',
+    sub: 'docker build — do código à imagem',
+    html: `
+      <p class="explain">Com o código e o Dockerfile prontos, o comando <code>docker build</code> lê a receita e monta a <strong>imagem</strong>.</p>
+      <ul class="explain">
+        <li>A imagem é criada a partir do Dockerfile.</li>
+        <li>A imagem é um <strong>modelo (template)</strong> que será usado para criar containers.</li>
+      </ul>
+
+      <div class="block-label">🔀 Como a imagem nasce</div>
+      <div class="build-flow">
+        <div class="bf-row">
+          <span class="bf-chip bf-source">📁 Código fonte</span>
+          <span class="bf-plus">+</span>
+          <span class="bf-chip bf-docker">📄 Dockerfile</span>
+        </div>
+        <span class="bf-down">↓</span>
+        <span class="bf-chip bf-build">🔨 docker build</span>
+        <span class="bf-down">↓</span>
+        <span class="bf-chip bf-image">🖼️ Imagem Docker</span>
+      </div>
+
+      <div class="block-label">💻 Terminal — construindo as imagens</div>
+      __TERM_5__
+    `,
+    term: {
+      id: 5,
+      lines: [
+        { p: '$ ', cmd: 'docker build -t backend-app ./backend' },
+        { out: '=> [1/5] FROM node:22', cls: 'out' },
+        { out: '=> [4/5] RUN npm install', cls: 'out' },
+        { out: '✓ imagem backend-app criada', cls: 'ok' },
+        { p: '$ ', cmd: 'docker build -t frontend-app ./frontend' },
+        { out: '✓ imagem frontend-app criada', cls: 'ok' }
+      ]
+    }
+  },
+
+  /* ETAPA 6 */
+  {
+    n: 6, type: 'container', emoji: '📦',
+    title: 'Criando e iniciando containers',
+    sub: 'docker run — a imagem ganha vida',
+    html: `
+      <p class="explain">O comando <code>docker run</code> cria um <strong>container</strong> a partir de uma imagem e o coloca em execução. A flag <code>-p</code> mapeia a porta do container para a sua máquina.</p>
+      <ul class="explain">
+        <li>Container é a imagem em execução.</li>
+        <li>Cada aplicação roda isolada (backend e frontend em containers separados).</li>
+      </ul>
+
+      <div class="block-label">🆚 Imagem vs Container</div>
+      <div class="vs-grid">
+        <div class="vs-card" style="color:var(--c-image)">
+          <div class="vi">🖼️</div>
+          <h4>Imagem</h4>
+          <p>Modelo estático e imutável, salvo em disco. Não executa nada sozinha.</p>
+        </div>
+        <div class="vs-mid">▶</div>
+        <div class="vs-card" style="color:var(--c-container)">
+          <div class="vi">📦</div>
+          <h4>Container</h4>
+          <p>Instância viva da imagem — um processo isolado, com estado e em execução.</p>
+        </div>
+      </div>
+
+      <div class="block-label">💻 Terminal — subindo os containers</div>
+      __TERM_6__
+    `,
+    term: {
+      id: 6,
+      lines: [
+        { p: '$ ', cmd: 'docker run -p 3000:3000 backend-app' },
+        { out: '✓ Backend no ar → http://localhost:3000', cls: 'ok' },
+        { p: '$ ', cmd: 'docker run -p 4200:4200 frontend-app' },
+        { out: '✓ Frontend no ar → http://localhost:4200', cls: 'ok' }
+      ]
+    }
+  },
+
+  /* ETAPA 7 */
+  {
+    n: 7, type: 'command', emoji: '🔍',
+    title: 'Verificando containers',
+    sub: 'Listar, parar e remover',
+    html: `
+      <p class="explain">Comandos do dia a dia para inspecionar e gerenciar o que está rodando.</p>
+      <ul class="explain">
+        <li><code>docker ps</code> — lista os containers em execução.</li>
+        <li><code>docker images</code> — lista as imagens disponíveis no seu disco.</li>
+        <li><code>docker stop</code> — para um container em execução.</li>
+        <li><code>docker rm</code> — remove um container já parado.</li>
+      </ul>
+
+      <div class="block-label">💻 Terminal — inspecionando</div>
+      __TERM_7__
+    `,
+    term: {
+      id: 7,
+      lines: [
+        { p: '$ ', cmd: 'docker ps' },
+        { out: 'CONTAINER ID   IMAGE          PORTS', cls: 'out' },
+        { out: 'a1b2c3d4       backend-app    0.0.0.0:3000->3000', cls: 'out' },
+        { out: 'e5f6g7h8       frontend-app   0.0.0.0:4200->4200', cls: 'out' },
+        { p: '$ ', cmd: 'docker images' },
+        { out: 'backend-app    latest   142MB', cls: 'out' },
+        { out: 'frontend-app   latest   198MB', cls: 'out' },
+        { p: '$ ', cmd: 'docker stop a1b2c3d4' },
+        { out: 'a1b2c3d4', cls: 'warn' },
+        { p: '$ ', cmd: 'docker rm a1b2c3d4' },
+        { out: 'a1b2c3d4  (container removido)', cls: 'warn' }
+      ]
+    }
+  },
+
+  /* ETAPA 8 */
+  {
+    n: 8, type: 'compose', emoji: '🧩',
+    title: 'Evolução para Docker Compose',
+    sub: 'Orquestrando tudo com um só comando',
+    html: `
+      <p class="explain">Rodar cada <code>docker run</code> na mão fica trabalhoso. O <strong>Docker Compose</strong> descreve todos os serviços em um único arquivo <code>docker-compose.yml</code> e sobe tudo junto com <code>docker compose up</code>.</p>
+      <ul class="explain">
+        <li>Um arquivo descreve frontend, backend e banco de dados.</li>
+        <li>Os containers se comunicam por uma rede interna automática.</li>
+        <li>Sobe e derruba todo o ambiente com um comando só.</li>
+        <li>O Postgres <strong>exige</strong> <code>POSTGRES_PASSWORD</code> — sem ela, o container encerra na hora com <code>Exited (1)</code>.</li>
+        <li>Os <code>volumes</code> espelham seu código para dentro do container: você edita na sua máquina e o app recompila sozinho, <strong>sem precisar de <code>--build</code></strong>.</li>
+        <li>A linha <code>/app/node_modules</code> impede que o volume do código apague as dependências instaladas dentro do container.</li>
+      </ul>
+
+      <div class="block-label">🧱 Os serviços orquestrados</div>
+      <div class="compose-stack">
+        <div class="compose-node" style="color:var(--c-container)">▲ Frontend Angular<small>container · porta 4200</small></div>
+        <div class="compose-pipe">│</div>
+        <div class="compose-node" style="color:var(--c-source)">⬡ Backend Node.js<small>container · porta 3000</small></div>
+        <div class="compose-pipe">│</div>
+        <div class="compose-node" style="color:var(--c-image)">🗄️ Banco de dados<small>container · porta 5432</small></div>
+      </div>
+
+      <div class="file-tab" style="color:var(--c-compose)">docker-compose.yml</div>
+      <div class="dockerfile" style="border-left-color:var(--c-compose)"><span class="kw">services</span>:
+  <span class="val">frontend</span>:
+    <span class="kw">build</span>: ./frontend
+    <span class="kw">ports</span>: [<span class="val">"4200:4200"</span>]
+    <span class="kw">volumes</span>:
+      - <span class="val">./frontend:/app</span>      <span class="cmt"># código ao vivo (hot reload)</span>
+      - <span class="val">/app/node_modules</span>   <span class="cmt"># preserva as libs do container</span>
+  <span class="val">backend</span>:
+    <span class="kw">build</span>: ./backend
+    <span class="kw">ports</span>: [<span class="val">"3000:3000"</span>]
+    <span class="kw">volumes</span>:
+      - <span class="val">./backend:/app</span>
+      - <span class="val">/app/node_modules</span>
+  <span class="val">db</span>:
+    <span class="kw">image</span>: <span class="val">postgres:16</span>
+    <span class="kw">environment</span>:
+      <span class="kw">POSTGRES_PASSWORD</span>: <span class="val">postgres</span>
+    <span class="kw">ports</span>: [<span class="val">"5432:5432"</span>]</div>
+
+      <div class="block-label">💻 Terminal — um comando para tudo</div>
+      __TERM_8__
+
+      <div class="block-label">⌨️ Guia rápido — comandos do dia a dia</div>
+      <div class="dockerfile" style="border-left-color:var(--c-command)"><span class="cmt"># subir tudo, reconstruindo as imagens (use após mudar o Dockerfile)</span>
+docker compose up --build
+
+<span class="cmt"># subir em segundo plano — libera o terminal</span>
+docker compose up -d
+
+<span class="cmt"># PARAR (em primeiro plano): pressione  Ctrl + C  no terminal</span>
+
+<span class="cmt"># parar e REMOVER containers + rede</span>
+docker compose down
+
+<span class="cmt"># parar SEM remover (retoma depois com "up")</span>
+docker compose stop
+
+<span class="cmt"># ver o que está rodando e acompanhar os logs</span>
+docker compose ps
+docker compose logs -f frontend
+
+<span class="cmt"># reconstruir a imagem de um serviço só</span>
+docker compose build frontend</div>
+
+      <ul class="explain" style="margin-top:.9rem">
+        <li><code>Ctrl + C</code> para o <code>up</code> que está em primeiro plano, mas <strong>mantém</strong> os containers — o <code>down</code> é que limpa tudo.</li>
+        <li>Cuidado: <code>docker compose down -v</code> remove também os <strong>volumes</strong> — isso <strong>apaga os dados do banco</strong>.</li>
+      </ul>
+    `,
+    term: {
+      id: 8,
+      lines: [
+        { p: '$ ', cmd: 'docker compose up' },
+        { out: '✓ Rede criada: projeto-fullstack_default', cls: 'out' },
+        { out: '✓ db      iniciado', cls: 'ok' },
+        { out: '✓ backend  iniciado', cls: 'ok' },
+        { out: '✓ frontend iniciado', cls: 'ok' },
+        { out: '🎉 Ambiente completo no ar!', cls: 'ok' }
+      ]
+    }
+  }
+];
+
+/* ═══════════════════════════════════════════════
+   RENDERIZAÇÃO DA TIMELINE
+   ═══════════════════════════════════════════════ */
+const timeline = document.getElementById('timeline');
+
+steps.forEach(step => {
+  const accent = ACCENT[step.type];
+
+  // monta o HTML do terminal se existir
+  let bodyHtml = step.html;
+  if (step.term) {
+    const termHtml = `
+      <div class="terminal" data-term="${step.term.id}">
+        <div class="term-bar">
+          <div class="dots"><span class="r"></span><span class="y"></span><span class="g"></span></div>
+          <span class="title">bash — projeto-fullstack</span>
+        </div>
+        <div class="term-body" id="termbody-${step.term.id}"></div>
+      </div>
+      <button class="run-term" id="runbtn-${step.term.id}" onclick="runTerminal(${step.term.id})">▶ Executar comandos</button>
+    `;
+    bodyHtml = bodyHtml.replace('__TERM_' + step.n + '__', termHtml);
+  }
+
+  const el = document.createElement('div');
+  el.className = 'step';
+  el.style.setProperty('--accent', accent);
+  el.innerHTML = `
+    <div class="step-badge">${step.n}</div>
+    <div class="card" id="card-${step.n}">
+      <div class="card-head" onclick="toggleCard(${step.n})">
+        <span class="card-emoji">${step.emoji}</span>
+        <div class="card-titles">
+          <div class="kicker">Etapa ${step.n} / ${steps.length}</div>
+          <h3>${step.title}</h3>
+          <div class="sub">${step.sub}</div>
+        </div>
+        <span class="chevron">⌄</span>
+      </div>
+      <div class="card-body">
+        <div><div class="card-inner">${bodyHtml}</div></div>
+      </div>
+    </div>
+  `;
+  timeline.appendChild(el);
+});
+
+/* ═══════════════════════════════════════════════
+   EXPANDIR / RECOLHER CARDS
+   ═══════════════════════════════════════════════ */
+function toggleCard(n) {
+  document.getElementById('card-' + n).classList.toggle('open');
+}
+// abre a primeira etapa por padrão
+document.getElementById('card-1').classList.add('open');
+
+/* ═══════════════════════════════════════════════
+   REVELAÇÃO NO SCROLL
+   ═══════════════════════════════════════════════ */
+const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+const stepEls = [...document.querySelectorAll('.step')];
+if (reduceMotion) {
+  stepEls.forEach(s => s.classList.add('reveal'));
+} else {
+  const io = new IntersectionObserver((entries) => {
+    entries.forEach(e => { if (e.isIntersecting) { e.target.classList.add('reveal'); io.unobserve(e.target); } });
+  }, { threshold: 0.12, rootMargin: '0px 0px -8% 0px' });
+  stepEls.forEach(s => io.observe(s));
+}
+
+/* ═══════════════════════════════════════════════
+   BARRA DE PROGRESSO
+   ═══════════════════════════════════════════════ */
+const progress = document.getElementById('progress');
+function updateProgress() {
+  const h = document.documentElement.scrollHeight - window.innerHeight;
+  progress.style.width = (h > 0 ? (window.scrollY / h) * 100 : 0) + '%';
+}
+window.addEventListener('scroll', updateProgress, { passive: true });
+updateProgress();
+
+/* ═══════════════════════════════════════════════
+   TERMINAL FALSO — "digita" os comandos
+   ═══════════════════════════════════════════════ */
+const termData = {};
+steps.forEach(s => { if (s.term) termData[s.term.id] = s.term.lines; });
+const termRunning = {};
+
+function runTerminal(id) {
+  if (termRunning[id]) return;
+  termRunning[id] = true;
+
+  const body = document.getElementById('termbody-' + id);
+  const btn = document.getElementById('runbtn-' + id);
+  if (btn) { btn.disabled = true; btn.textContent = '● executando…'; }
+  body.innerHTML = '';
+  const lines = termData[id];
+  let li = 0;
+
+  function finish() {
+    termRunning[id] = false;
+    if (btn) { btn.disabled = false; btn.textContent = '↻ Executar novamente'; }
+  }
+
+  function nextLine() {
+    if (li >= lines.length) { finish(); return; }
+    const line = lines[li];
+    const lineEl = document.createElement('div');
+    lineEl.className = 'term-line';
+    body.appendChild(lineEl);
+
+    if (line.cmd) {
+      lineEl.innerHTML = `<span class="prompt">${line.p || ''}</span><span class="cmd"></span><span class="cursor"></span>`;
+      const cmdSpan = lineEl.querySelector('.cmd');
+      const cursor = lineEl.querySelector('.cursor');
+      let ci = 0;
+      function typeChar() {
+        if (ci < line.cmd.length) {
+          cmdSpan.textContent += line.cmd[ci++];
+          setTimeout(typeChar, reduceMotion ? 0 : 26 + Math.random() * 38);
+        } else {
+          cursor.remove();
+          li++;
+          setTimeout(nextLine, reduceMotion ? 0 : 260);
+        }
+      }
+      typeChar();
+    } else {
+      lineEl.innerHTML = `<span class="${line.cls || 'out'}">${line.out}</span>`;
+      li++;
+      setTimeout(nextLine, reduceMotion ? 0 : 200);
+    }
+  }
+  nextLine();
+}
+
+/* ═══════════════════════════════════════════════
+   ANIMAÇÃO DA FAIXA DE TRANSFORMAÇÃO
+   ═══════════════════════════════════════════════ */
+const tNodes  = [...document.querySelectorAll('.t-node')];
+const tArrows = [...document.querySelectorAll('.t-arrow')];
+let transformTimer = null;
+
+function playTransform() {
+  if (transformTimer) clearInterval(transformTimer);
+  tNodes.forEach(n => n.classList.remove('on'));
+  tArrows.forEach(a => a.classList.remove('on'));
+
+  let i = 0;
+  function tick() {
+    if (i < tNodes.length) {
+      tNodes[i].classList.add('on');
+      if (i > 0) tArrows[i - 1].classList.add('on');
+      i++;
+    } else {
+      clearInterval(transformTimer);
+      transformTimer = null;
+    }
+  }
+  tick();
+  transformTimer = setInterval(tick, reduceMotion ? 1 : 640);
+}
+
+// roda a animação ao carregar
+window.addEventListener('load', () => setTimeout(playTransform, 400));
+</script>
+</body>
+</html>
